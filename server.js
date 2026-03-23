@@ -2,6 +2,8 @@ const express = require('express');
 const cors = require('cors');
 
 const app = express();
+app.get('/ping', (req, res) => res.json({ ok: true }));
+
 app.use(cors({
     origin: [
         'https://simulador-frutas.netlify.app',
@@ -11,7 +13,6 @@ app.use(cors({
     ]
 }));
 app.use(express.json());
-app.get('/ping', (req, res) => res.json({ ok: true }));
 
 // ==========================================================
 // 🧠 MOTOR MATEMÁTICO (Aislado y protegido en el servidor)
