@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Projection Engine | RK4/Euler</title>
+    <script src="https://cdn.tailwindcss.com?plugins=forms"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body { font-family: 'Inter', sans-serif; background: #f8fafc; color: #0f172a; }
+        .glass-panel { background: white; border: 1px solid #e2e8f0; border-radius: 20px; box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05); }
+        .form-input { width: 100%; padding: 10px 14px; border: 1px solid #cbd5e1; border-radius: 10px; font-size: 14px; transition: border-color 0.2s; outline: none; }
+        .form-input:focus { border-color: #059669; box-shadow: 0 0 0 3px #d1fae5; }
+        .label-title { display: block; font-size: 11px; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; }
+    </style>
+</head>
+<body class="flex h-screen overflow-hidden">
+
+    <aside class="w-[400px] h-full overflow-y-auto bg-white border-r border-slate-200 p-6 flex flex-col gap-6 z-10 shadow-lg">
+        <div>
+            <h1 class="text-2xl font-black text-slate-900 leading-tight">Projection<br><span class="text-emerald-600">Engine</span></h1>
+            <p class="text-xs text-slate-500 mt-2 font-medium">Numerical simulation (Euler integration approach)</p>
+        </div>
+
+        <div class="glass-panel p-5 bg-slate-50">
+            <h3 class="font-bold text-slate-800 mb-4 flex items-center gap-2">📦 1. Base Inventory</h3>
+            <div class="space-y-4">
+                <div>
+                    <label class="label-title">Product Species</label>
+                    <select id="inv_fruit" class="form-input bg-white cursor-pointer">
+                        <option value="Apple">Apple</option>
+                        <option value="Avocado">Avocado</option>
+                        <option value="Lemon">Lemon</option>
+                        <option value="Melon">Melon</option>
+                        <option value="Grape">Grape</option>
+                        <option value="Orange">Orange</option>
+                    </select>
+                </div>
+                <div class="flex gap-4">
+                    <div class="flex-1">
+                        <label class="label-title">Stock (kg)</label>
+                        <input type="number" id="inv_stock" class="form-input" value="1500" step="100">
+                    </div>
+                    <div class="flex-1">
+                        <label class="label-title">Waste (%)</label>
+                        <input type="number" id="inv_merma" class="form-input" value="12" step="1">
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="glass-panel p-5 bg-slate-50">
+            <h3 class="font-bold text-slate-800 mb-4 flex items-center gap-2">⚙️ 2. Technology Base</h3>
+            <div class="space-y-4">
+                <div>
+                    <label class="label-title">System</label>
+                    <input type="text" class="form-input bg-gray-100 text-gray-500 cursor-not-allowed" value="Nebulizador Dinámico" readonly>
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="label-title">Power (kW)</label>
+                        <input type="number" id="t_pow" class="form-input" value="3.0">
+                    </div>
+                    <div>
+                        <label class="label-title">Nozzles</label>
+                        <input type="number" id="t_noz" class="form-input" value="60">
+                    </div>
+                    <div>
+                        <label class="label-title">Flow (L/h)</label>
+                        <input type="number" id="t_flow" class="form-input" value="2.0">
+                    </div>
+                    <div>
+                        <label class="label-title">Hours/day</label>
+                        <input type="number" id="t_hrs" class="form-input" value="6.0">
+                    </div>
+                    <div class="col-span-2">
+                        <label class="label-title">Base Bleach Conc. (g/L)</label>
+                        <input type="number" id="t_bleach" class="form-input" value="10.0">
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </aside>
+
+    <main class="flex-1 h-full flex flex-col overflow-hidden bg-slate-100">
+        
+        <div class="bg-white border-b border-slate-200 p-6 flex items-end gap-4 shadow-sm z-0 relative">
+            <div class="flex-1">
+                <label class="label-title text-blue-600">Iterative Variable $x$</label>
+                <select id="proj_var" class="form-input border-blue-200 bg-blue-50 font-bold text-blue-800 cursor-pointer">
+                    <option value="bleach">Chemical Concentration (Bleach g/L)</option>
+                    <option value="hours">Operation Time (Hours/day)</option>
+                    <option value="stock">Inventory Volume (Stock kg)</option>
+                </select>
+            </div>
+            <div class="w-32">
+                <label class="label-title">Start $x_0$</label>
+                <input type="number" id="proj_min" class="form-input" value="0">
+            </div>
+            <div class="w-32">
+                <label class="label-title">End $x_n$</label>
+                <input type="number" id="proj_max" class="form-input" value="50">
+            </div>
+            <div class="w-32">
+                <label class="label-title">Steps $n$</label>
+                <input type="number" id="proj_steps" class="form-input" value="50">
+            </div>
+            <div class="w-48">
+                <label class="label-title text-emerald-600">Target Vector $y$</label>
+                <select id="proj_vector" class="form-input border-emerald-200 bg-emerald-50 font-bold text-emerald-800 cursor-pointer">
+                    <option value="a">Environmental (µPt)</option>
+                    <option value="s">Social (Pt)</option>
+                    <option value="e">Economic (€)</option>
+                </select>
+            </div>
+            <button onclick="runProjectionEngine()" class="bg-slate-900 hover:bg-slate-800 text-white font-bold h-10 px-6 rounded-xl transition-all shadow-md active:scale-95 flex items-center gap-2">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5.25 5.653c0-.856.917-1.398 1.667-.986l11.54 6.348a1.125 1.125 0 010 1.971l-11.54 6.347a1.125 1.125 0 01-1.667-.985V5.653z"></path></svg>
+                Simulate
+            </button>
+        </div>
+
+        <div class="flex-1 p-8 overflow-y-auto">
+            <div class="glass-panel p-6 h-full flex flex-col">
+                <div class="flex justify-between items-start mb-4">
+                    <div>
+                        <h2 class="text-xl font-extrabold text-slate-800">System State Trajectory</h2>
+                        <p class="text-sm text-slate-500">Break-even analysis over varying conditions.</p>
+                    </div>
+                    <div id="intersection-alert" class="hidden px-4 py-2 bg-emerald-100 text-emerald-800 border border-emerald-200 rounded-lg text-sm font-bold flex items-center gap-2">
+                        <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                        Break-even found at <span id="intersection-val" class="text-lg">--</span>
+                    </div>
+                </div>
+                <div class="relative flex-1 w-full min-h[400px]">
+                    <canvas id="projectionChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+    <script>
+        // ================= DATOS GLOBALES (BBDD) =================
+        const BBDD_FRUTAS = { 
+            'Apple': { a: 36.0599, s: 108.43, e: 1.60 }, 
+            'Avocado': { a: 175.8634, s: 122.342, e: 5.49 }, 
+            'Lemon': { a: 82.8343, s: 7.57, e: 2.35 }, 
+            'Melon': { a: 22.7677, s: 33.636, e: 1.99 }, 
+            'Grape': { a: 43.5973, s: 64.83, e: 3.09 }, 
+            'Orange': { a: 85.4345, s: 59.41, e: 1.35 } 
+        };
+        const COEF_AMB = [38.7286, 0.3473, 306.8522]; // Electricidad, Agua, Lejia
+        const COEF_SOC = [2.55, 0.024, 11.23];
+        const COEF_ECO = [0.16, 0.00223, 2.69];
+
+        let currentChart = null;
+
+        // ================= MOTOR DE PROYECCIÓN (EULER STYLE) =================
+        function runProjectionEngine() {
+            // 1. Obtener condiciones iniciales estáticas
+            const baseFruit = document.getElementById('inv_fruit').value;
+            const baseStock = parseFloat(document.getElementById('inv_stock').value);
+            const baseMerma = parseFloat(document.getElementById('inv_merma').value) / 100;
+            
+            const basePow = parseFloat(document.getElementById('t_pow').value);
+            const baseNoz = parseFloat(document.getElementById('t_noz').value);
+            const baseFlow = parseFloat(document.getElementById('t_flow').value);
+            const baseHrs = parseFloat(document.getElementById('t_hrs').value);
+            const baseBleach = parseFloat(document.getElementById('t_bleach').value);
+
+            // 2. Parámetros de Integración (Sweep)
+            const varSweep = document.getElementById('proj_var').value;
+            const vectorTarget = document.getElementById('proj_vector').value; // 'a', 's', 'e'
+            
+            const x_min = parseFloat(document.getElementById('proj_min').value);
+            const x_max = parseFloat(document.getElementById('proj_max').value);
+            const steps = parseInt(document.getElementById('proj_steps').value);
+            
+            const h = (x_max - x_min) / steps; // Tamaño del paso de Euler
+
+            let labels = [];
+            let dataBaseScenario = [];
+            let dataTechScenario = [];
+            let intersectionX = null;
+
+            // 3. Bucle Iterativo (Evaluar el sistema paso a paso)
+            for (let i = 0; i <= steps; i++) {
+                let current_x = x_min + (i * h);
+                labels.push(current_x.toFixed(1));
+
+                // Copiar el estado para alterarlo en este paso
+                let stepStock = baseStock;
+                let stepHrs = baseHrs;
+                let stepBleach = baseBleach;
+
+                // Inyectar la variable modificada según el step actual
+                if (varSweep === 'bleach') stepBleach = current_x;
+                if (varSweep === 'hours') stepHrs = current_x;
+                if (varSweep === 'stock') stepStock = current_x;
+
+                // --- MATEMÁTICA DE LA AUDITORÍA ---
+                
+                // Impacto Base (Inacción) = Merma Total (kg) * Coeficiente de la fruta
+                let totalMermaKg = stepStock * baseMerma;
+                let impactoBase = totalMermaKg * BBDD_FRUTAS[baseFruit][vectorTarget];
+
+                // Impacto Tecnología = Consumos de la máquina * Coeficientes
+                let kW_total = basePow * stepHrs;
+                let L_agua = baseNoz * baseFlow * stepHrs;
+                let kg_lejia = L_agua * (stepBleach / 1000); // g/L a kg
+
+                let impactoTech = 0;
+                if (vectorTarget === 'a') {
+                    impactoTech = (kW_total * COEF_AMB[0]) + (L_agua * COEF_AMB[1]) + (kg_lejia * COEF_AMB[2]);
+                } else if (vectorTarget === 's') {
+                    impactoTech = (kW_total * COEF_SOC[0]) + (L_agua * COEF_SOC[1]) + (kg_lejia * COEF_SOC[2]);
+                } else if (vectorTarget === 'e') {
+                    impactoTech = (kW_total * COEF_ECO[0]) + (L_agua * COEF_ECO[1]) + (kg_lejia * COEF_ECO[2]);
+                }
+
+                dataBaseScenario.push(impactoBase);
+                dataTechScenario.push(impactoTech);
+
+                // Detección de Punto de Equilibrio (Cruce de curvas)
+                // Si la tecnología generaba MENOS impacto que la base, y de repente genera MÁS (o viceversa)
+                if (i > 0) {
+                    let prevBase = dataBaseScenario[i-1];
+                    let prevTech = dataTechScenario[i-1];
+                    if ((prevTech < prevBase && impactoTech >= impactoBase) || 
+                        (prevTech > prevBase && impactoTech <= impactoBase)) {
+                        intersectionX = current_x;
+                    }
+                }
+            }
+
+            // 4. Actualizar la Interfaz
+            renderChart(labels, dataBaseScenario, dataTechScenario, varSweep, vectorTarget);
+            
+            const alertBox = document.getElementById('intersection-alert');
+            if (intersectionX !== null) {
+                alertBox.classList.remove('hidden');
+                let unit = varSweep === 'bleach' ? 'g/L' : (varSweep === 'hours' ? 'h' : 'kg');
+                document.getElementById('intersection-val').innerText = intersectionX.toFixed(2) + ' ' + unit;
+            } else {
+                alertBox.classList.add('hidden');
+            }
+        }
+
+        // ================= DIBUJADO DE LA GRÁFICA (CHART.JS) =================
+        function renderChart(labels, dataBase, dataTech, varSweep, vectorTarget) {
+            const ctx = document.getElementById('projectionChart').getContext('2d');
+            
+            if (currentChart) currentChart.destroy();
+
+            let xAxisLabel = varSweep === 'bleach' ? 'Bleach Concentration (g/L)' : (varSweep === 'hours' ? 'Operating Hours/day (h)' : 'Inventory Volume (kg)');
+            let yAxisLabel = vectorTarget === 'a' ? 'Environmental Impact (µPt)' : (vectorTarget === 's' ? 'Social Impact (Pt)' : 'Economic Cost (€)');
+
+            currentChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        {
+                            label: 'Base Inaction Waste',
+                            data: dataBase,
+                            borderColor: '#ef4444',
+                            backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                            borderWidth: 3,
+                            borderDash: [5, 5],
+                            fill: false,
+                            pointRadius: 0,
+                            tension: 0.1
+                        },
+                        {
+                            label: 'Technology Impact',
+                            data: dataTech,
+                            borderColor: '#0ea5e9',
+                            backgroundColor: 'rgba(14, 165, 233, 0.1)',
+                            borderWidth: 3,
+                            fill: true,
+                            pointRadius: 0,
+                            tension: 0.4
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: {
+                        mode: 'index',
+                        intersect: false,
+                    },
+                    plugins: {
+                        legend: { position: 'top', labels: { font: { family: 'Inter', weight: 'bold' } } },
+                        tooltip: {
+                            backgroundColor: 'rgba(15, 23, 42, 0.9)',
+                            titleFont: { family: 'Inter', size: 14 },
+                            bodyFont: { family: 'Inter', size: 13, weight: 'bold' },
+                            padding: 12,
+                            cornerRadius: 8
+                        }
+                    },
+                    scales: {
+                        x: {
+                            title: { display: true, text: xAxisLabel, font: { family: 'Inter', weight: 'bold', size: 14 }, color: '#64748b' },
+                            grid: { display: false }
+                        },
+                        y: {
+                            title: { display: true, text: yAxisLabel, font: { family: 'Inter', weight: 'bold', size: 14 }, color: '#64748b' },
+                            grid: { color: '#f1f5f9' },
+                            beginAtZero: true
+                        }
+                    }
+                }
+            });
+        }
+
+        // Auto-run on load
+        window.onload = () => {
+            runProjectionEngine();
+        };
+
+    </script>
+</body>
+</html>
