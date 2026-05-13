@@ -2306,10 +2306,7 @@
         };
         const parseSafeFloat = (val) => { const parsed = parseFloat(val); return isNaN(parsed) ? 0 : parsed; };
         window.tt = (text, explanation) => `<div class="tooltip-wrapper"><span style="border-bottom:1px dashed var(--text-muted);">${text}</span> <span class="tooltip-icon">?</span><div class="tooltip-text">${explanation}</div></div>`;
-        document.oncontextmenu = () => false;
-        document.onkeydown = (e) => {
-            if (e.keyCode == 123 || (e.ctrlKey && e.shiftKey && e.keyCode == 73)) return false;
-        };
+        
 
         const firebaseConfig = {
             apiKey: "AIzaSyBaq3l0aJUljUVpbQbDTIPFI4y4g0gi0bk",
