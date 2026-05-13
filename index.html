@@ -2345,20 +2345,18 @@
                 errEl.classList.remove('hidden');
             }
         };
-
+        // --- FUNCIÓN DE LOGIN ---
         window.loginGoogle = async () => {
             const provider = new GoogleAuthProvider();
             provider.setCustomParameters({ prompt: 'select_account' });
             try {
-                await signInWithPopup(auth, provider);
-                // No necesitas hacer nada más aquí, onAuthStateChanged se encarga del resto
+                console.log("Intentando login con Google...");
+                const result = await signInWithPopup(auth, provider);
+                console.log("Login exitoso:", result.user.displayName);
+                window.showNotification(`Bienvenido, ${result.user.displayName}`);
             } catch (e) {
-                console.error("Error en Google Login:", e);
-                if (e.code === 'auth/unauthorized-domain') {
-                    window.showNotification("Error: Dominio no autorizado en Firebase", "error");
-                } else {
-                    window.showNotification("Error al iniciar sesión", "error");
-                }
+                console.error("Error en login:", e);
+                window.showNotification("Error: " + e.message, "error");
             }
         };
 
